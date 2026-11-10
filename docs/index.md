@@ -2,6 +2,8 @@
 
 CMU 15-418 Final Project — Fall 2026
 
+Dylan Bao (jiayuanb) and Samuel Zhang (samuelz2)
+
 ## About the Project
 
 We are implementing a software transactional memory

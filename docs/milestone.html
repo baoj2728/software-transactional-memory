@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>STM Milestone Report — November 23, 2026</title><style>
+:root { color-scheme: light; }
+body { max-width: 960px; margin: 44px auto 70px; padding: 0 24px; background:#fff; color:#202936; font: 16px/1.6 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+h1 { font-size: 1.8rem; line-height: 1.25; margin:0 0 9px; }
+h2 { font-size: 1.2rem; margin:32px 0 12px; border-bottom: 1px solid #d8dee7; padding-bottom: 6px; }
+p { margin: 10px 0; }
+.meta { color: #596579; font-size: .93rem; margin: 2px 0; }
+a { color: #165caa; text-decoration: underline; }
+.action { display: inline-block; border:1px solid #d0d8e4; padding:7px 12px; border-radius:6px; text-decoration:none; margin:14px 0 8px; }
+.tablewrap {overflow-x:auto; margin:16px 0 22px;}
+table { border-collapse:collapse; width:100%; font-size: .9rem; }
+th, td { padding: 8px 10px; border-bottom: 1px solid #d9dfe7; text-align:left; vertical-align:top; }
+th { background:#f3f5f7; font-weight:650; }
+.small { color: #596579; font-size:.92rem; }
+@media(max-width:640px){body{margin:24px auto;padding:0 16px}h1{font-size:1.5rem}table{font-size:.82rem}}
+</style></head>
+<body><main>
+<a href="./">← Project home</a><div><a class="action" href="milestone.pdf">View the milestone report (PDF)</a></div>
+<h1>Software Transactional Memory — Milestone Report</h1>
+<p class="meta">CMU 15-418/618  |  November 23, 2026</p>
+<p class="meta">Dylan Bao (jiayuanb) and Samuel Zhang (samuelz2)</p>
+<p class="meta">Project: <a href="https://baoj2728.github.io/software-transactional-memory/">baoj2728.github.io/software-transactional-memory/</a>   |   Code: <a href="https://github.com/baoj2728/software-transactional-memory">github.com/baoj2728/software-transactional-memory</a></p>
+<h2>Work completed</h2>
+<p>We have the main pieces of our C++ software transactional memory library implemented. We started with a global-lock version to get the transaction API working, then switched to a TL2-style design that allows concurrent execution. The library provides <code>stm::atomic&lt;T&gt;</code> variables and an <code>atomic_run()</code> wrapper. Each thread has its own transaction context with read and write sets. Writes stay in a local buffer until commit; shared variables have versioned locks, and transactions check read versions to detect conflicts.</p>
+<p>The commit path now acquires the write-set locks using compare-and-swap, validates previous reads, publishes buffered writes, and releases the locks with updated versions. Failed reads and commits trigger a retry of the transaction body. We have also added cleanup for locks held by an aborted transaction. The core implementation is mostly done, but we still need more systematic testing and performance work.</p>
+<h2>Preliminary correctness checks</h2>
+<p>We ran a small local test harness against the current code using g++ and C++17. Each check passed in three repeated runs:</p>
+<div class="tablewrap"><table><tr><th>Check</th><th>Setup</th><th>Observed result</th></tr><tr><td>Concurrent counter</td><td>4 threads × 10,000 increments</td><td>Final value 40,000 in all three runs</td></tr><tr><td>Bank transfers</td><td>4 threads × 3,000 transfers across 3 accounts; concurrent reader</td><td>Total stayed at 300,000; no inconsistent total observed</td></tr><tr><td>Abort on exception</td><td>Throw after buffering a write</td><td>Original shared value preserved</td></tr></table></div>
+<p class="small">These are functional smoke tests, not a full concurrency validation. We have not collected meaningful throughput or speedup measurements yet.</p>
+<h2>Progress against proposed goals</h2>
+<p>The main STM library and transaction API are at the prototype stage, roughly on schedule for the milestone. We expect to finish the planned correctness tests, shared-counter and bank-transfer benchmarks, and coarse- versus fine-grained-lock comparisons. The alternative eager-versioning and conflict-detection designs from the proposal are stretch goals; we will not prioritize them over a solid evaluation of TL2. If time allows, we will add a simple backoff policy and measure whether it helps under contention.</p>
+<h2>Remaining concerns</h2>
+<p>Our biggest concern is correctness under less predictable interleavings, especially conflict-heavy workloads, lock cleanup, and avoiding partial publication if a commit path fails. We also need to measure whether read/write-set bookkeeping and retries outweigh the concurrency benefit on small transactions. We will discuss the test plan and any remaining issues with course staff before finalizing the benchmarks.</p>
+<h2>Updated schedule and responsibilities</h2>
+<p class="small">Completed work is included below for context. Future work is split into roughly half-week blocks; tasks and owners will also be reflected on the project website.</p>
+<div class="tablewrap"><table><tr><th>Dates</th><th>Status</th><th>Owner</th><th>Task</th></tr><tr><td>Nov 9–12</td><td>Completed</td><td>Dylan</td><td>Define transaction API, <code>stm::atomic&lt;T&gt;</code> wrapper, and project skeleton</td></tr><tr><td>Nov 9–12</td><td>Completed</td><td>Samuel</td><td>Design versioned-lock metadata and transaction context structures</td></tr><tr><td>Nov 13–15</td><td>Completed</td><td>Dylan</td><td>Implement buffered reads/writes and transaction-local read/write sets</td></tr><tr><td>Nov 13–15</td><td>Completed</td><td>Samuel</td><td>Implement global-clock and basic commit/abort mechanics</td></tr><tr><td>Nov 16–19</td><td>Completed</td><td>Dylan</td><td>Add read-time snapshot/version validation and retry signaling</td></tr><tr><td>Nov 16–19</td><td>Completed</td><td>Samuel</td><td>Add write-set CAS locking, commit validation, and unlock paths</td></tr><tr><td>Nov 20–22</td><td>Mostly done</td><td>Both</td><td>Integrate retry loop and abort cleanup; run initial smoke tests</td></tr><tr><td>Nov 23–26</td><td>Planned</td><td>Dylan</td><td>Build repeatable correctness suite: counter, transfers, exceptions, RW/WW cases</td></tr><tr><td>Nov 23–26</td><td>Planned</td><td>Samuel</td><td>Review TL2 edge cases; implement coarse-grained-lock baseline</td></tr><tr><td>Nov 27–29</td><td>Planned</td><td>Dylan</td><td>Build benchmark drivers and thread-count/transaction-size knobs</td></tr><tr><td>Nov 27–29</td><td>Planned</td><td>Samuel</td><td>Implement fine-grained-lock baseline using equivalent operations</td></tr><tr><td>Nov 30–Dec 3</td><td>Planned</td><td>Dylan</td><td>Run counter and bank-transfer throughput tests across thread counts</td></tr><tr><td>Nov 30–Dec 3</td><td>Planned</td><td>Samuel</td><td>Run contention and read/write-ratio sweeps; collect abort rates</td></tr><tr><td>Dec 4–6</td><td>Planned</td><td>Dylan</td><td>Profile STM overhead and address low-cost bottlenecks</td></tr><tr><td>Dec 4–6</td><td>Planned</td><td>Samuel</td><td>Try bounded backoff/adaptive retry as time permits; compare against baseline</td></tr><tr><td>Dec 7–9</td><td>Planned</td><td>Dylan</td><td>Make plots, summarize scaling, and check reproducibility of results</td></tr><tr><td>Dec 7–9</td><td>Planned</td><td>Samuel</td><td>Finalize additional experiments and draft poster figures</td></tr><tr><td>Dec 10–11</td><td>Planned</td><td>Both</td><td>Finish report and website; prepare and present poster/demo</td></tr></table></div>
+<h2>Poster session plan</h2>
+<p>We plan to show graphs comparing STM, coarse-grained locking, and fine-grained locking on counter and bank-transfer workloads. The main plots will show transaction throughput versus thread count and abort rate versus contention. We also plan to show a small live demonstration of transfers across shared bank accounts, with the total balance remaining constant. The demonstration and exact plots will depend on the final testing results.</p>
+</main></body></html>
